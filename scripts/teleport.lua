@@ -40,6 +40,7 @@ local MaxDistancePositionAroundTarget = 10
 ---@field maxDistance double
 ---@field destinationType Teleport_DestinationTypeSelection
 ---@field destinationTargetPosition? MapPosition|nil
+---@field destinationTargetSurface? LuaSurface|nil
 ---@field reachableOnly boolean
 ---@field backupTeleportSettings? Teleport_CommandDetails|nil
 ---@field destinationTypeDescription Teleport_DestinationTypeSelectionDescription
@@ -57,6 +58,7 @@ local MaxDistancePositionAroundTarget = 10
 ---@field maxDistance double
 ---@field destinationType Teleport_DestinationTypeSelection
 ---@field destinationTargetPosition? MapPosition|nil
+---@field destinationTargetSurface? LuaSurface|nil
 ---@field reachableOnly boolean
 ---@field targetAttempt uint
 ---@field backupTeleportSettings? Teleport_CommandDetails|nil
@@ -120,8 +122,8 @@ end
 ---@param command CustomCommandData
 Teleport.TeleportCommand = function(command)
     local commandData = CommandsUtils.GetSettingsTableFromCommandParameterString(command.parameter, true, CommandName,
-        {"delay", "target", "destinationType", "arrivalRadius", "minDistance", "maxDistance", "reachableOnly",
-         "backupTeleportSettings", "suppressMessages"})
+        {"delay", "target", "destinationType", "destinationSurface", "arrivalRadius", "minDistance", "maxDistance",
+         "reachableOnly", "backupTeleportSettings", "suppressMessages"})
     if commandData == nil then
         return
     end
@@ -193,6 +195,28 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
     end
 
     local destinationTypeDescription = DestinationTypeSelectionDescription[destinationType] ---@type Teleport_DestinationTypeSelectionDescription
+
+    ---@type LuaSurface|nil
+    local destinationTargetSurface;
+    local destinationSurfaceRaw = commandData.destinationSurface
+    if type(destinationSurfaceRaw) == "string" or type(destinationSurfaceRaw) == "number" then
+        if destinationSurfaceRaw == "random" then
+            local surfaces = game.surfaces;
+            local randomIndex = math.random(1, #surfaces);
+            destinationTargetSurface = surfaces[randomIndex]
+        elseif destinationSurfaceRaw == "same" then
+            destinationTargetSurface = nil
+        else
+            destinationTargetSurface = game.get_surface(destinationSurfaceRaw);
+            if destinationTargetSurface == nil then
+                CommandsUtils.LogPrintError(CommandName, "destinationSurface", "must be a valid surface",
+                    commandData.parameter)
+                return nil
+            end
+        end
+    end
+
+    -- Need to check if valid surface
 
     local arrivalRadius = commandData.arrivalRadius
     if not CommandsUtils.CheckNumberArgument(arrivalRadius, "double", false, CommandName,
@@ -282,6 +306,7 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
         minDistance = minDistance,
         maxDistance = maxDistance,
         destinationType = destinationType,
+        destinationTargetSurface = destinationTargetSurface,
         destinationTargetPosition = destinationTargetPosition,
         reachableOnly = reachableOnly,
         backupTeleportSettings = backupTeleportSettings,
@@ -307,6 +332,7 @@ Teleport.ScheduleTeleportCommand = function(commandValues)
         maxDistance = commandValues.maxDistance,
         destinationType = commandValues.destinationType,
         destinationTargetPosition = commandValues.destinationTargetPosition,
+        destinationTargetSurface = commandValues.destinationTargetSurface,
         reachableOnly = commandValues.reachableOnly,
         targetAttempt = 0,
         backupTeleportSettings = commandValues.backupTeleportSettings,
@@ -366,6 +392,7 @@ Teleport.PlanTeleportTarget = function(eventData)
         data.destinationTargetPosition = targetPlayer_force.get_spawn_position(targetPlayer_surface)
     elseif data.destinationType == DestinationTypeSelection.position then
         data.destinationTargetPosition = data.destinationTargetPosition
+        data.destinationTargetSurface = data.destinationTargetSurface
     elseif data.destinationType == DestinationTypeSelection.random then
         data.destinationTargetPosition = PositionUtils.RandomLocationInRadius(targetPlayer_position, data.maxDistance,
             data.minDistance)
@@ -491,8 +518,13 @@ Teleport.PlanTeleportTarget = function(eventData)
     data.targetPlayer_surface = targetPlayer_surface
     data.targetPlayer_force = targetPlayer_force
 
+    -- Ensures that any nil value is set to current surface.
+    if data.destinationTargetSurface == nil then
+
+        data.destinationTargetSurface = targetPlayer_surface
+    end
     -- Make the teleport request to near by the target identified.
-    local teleportResponse = PlayerTeleport.RequestTeleportToNearPosition(targetPlayer, targetPlayer_surface,
+    local teleportResponse = PlayerTeleport.RequestTeleportToNearPosition(targetPlayer, data.destinationTargetSurface,
         data.destinationTargetPosition, data.arrivalRadius, MaxRandomPositionsAroundTargetToTry,
         MaxDistancePositionAroundTarget, data.reachableOnly and targetPlayer_position or nil)
 
