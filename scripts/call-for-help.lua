@@ -299,7 +299,8 @@ CallForHelp.CallForHelp = function(eventData)
             if (not data.sameTeamOnly) or helpPlayer.force == targetPlayerForce then
                 helpPlayer_surface = helpPlayer.physical_surface
                 if (not data.sameSurfaceOnly or helpPlayer_surface == targetPlayerSurface) and
-                    helpPlayer.controller_type == defines.controllers.character and helpPlayer.character ~= nil then
+                    (helpPlayer.controller_type == defines.controllers.character or helpPlayer.controller_type ==
+                        defines.controllers.remote) and helpPlayer.character ~= nil then
                     if helpPlayer_surface ~= targetPlayerSurface then
                         distance = 4294967295 -- Maximum distance away to de-prioritise these players vs ones on the same surface.
                     else
