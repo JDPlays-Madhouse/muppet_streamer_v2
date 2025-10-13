@@ -77,19 +77,9 @@ end
 
 ---@param player LuaPlayer
 AddPlayerToPermissionGroup.ForceToCharacter = function(player)
-    ---@type  LuaPlayer.set_controller_param
-    local param = {
-        character = player.character,
-        type = defines.controllers.character
-    }
-    if param.character == nil then
-        CommandsUtils.LogPrintWarning(CommandName, "forceToCharacter",
-            player.name .. " has no character, so can't force to character.", nil)
-        return
-    end
-    player.set_controller(param)
-
+    player.exit_remote_view();
 end
+
 ---@param data AddPlayerToPermissionGroup_ApplyToPlayer
 AddPlayerToPermissionGroup.ApplyToPlayer = function(data)
     local targetPlayer = game.get_player(data.target)
