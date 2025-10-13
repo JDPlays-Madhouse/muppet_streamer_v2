@@ -15,7 +15,9 @@ Common.DelaySecondsSettingToScheduledEventTickValue = function(delaySeconds, cur
         local valueWasOutsideRange ---@type boolean
         scheduleTick, valueWasOutsideRange = MathUtils.ClampToUInt(currentTick + math.floor(delaySeconds * 60))
         if valueWasOutsideRange then
-            CommandsUtils.LogPrintWarning(commandName, settingName, "capped at max ticks, as excessively large number of delay seconds provided: " .. tostring(delaySeconds), nil)
+            CommandsUtils.LogPrintWarning(commandName, settingName,
+                "capped at max ticks, as excessively large number of delay seconds provided: " .. tostring(delaySeconds),
+                nil)
         end
         if scheduleTick == currentTick then
             scheduleTick = -1 ---@type UtilityScheduledEvent_UintNegative1
@@ -38,7 +40,8 @@ Common.SecondsSettingToTickValue = function(seconds, baseTick, commandName, sett
         local valueWasOutsideRange ---@type boolean
         cappedTicks, valueWasOutsideRange = MathUtils.ClampToUInt(baseTick + math.floor(seconds * 60))
         if valueWasOutsideRange then
-            CommandsUtils.LogPrintWarning(commandName, settingName, "capped at max ticks, as excessively large number of seconds provided: " .. tostring(seconds), nil)
+            CommandsUtils.LogPrintWarning(commandName, settingName,
+                "capped at max ticks, as excessively large number of seconds provided: " .. tostring(seconds), nil)
         end
     else
         cappedTicks = nil
@@ -74,7 +77,8 @@ Common.CommandNames = {
     muppet_streamer_v2_player_drop_inventory = "muppet_streamer_v2_player_drop_inventory",
     muppet_streamer_v2_player_inventory_shuffle = "muppet_streamer_v2_player_inventory_shuffle",
     muppet_streamer_v2_spawn_around_player = "muppet_streamer_v2_spawn_around_player",
-    muppet_streamer_v2_teleport = "muppet_streamer_v2_teleport"
+    muppet_streamer_v2_teleport = "muppet_streamer_v2_teleport",
+    muppet_streamer_v2_add_player_to_permission_group = "muppet_streamer_v2_add_player_to_permission_group"
 }
 
 --- Allows calling a command via a remote interface.
@@ -83,7 +87,8 @@ Common.CommandNames = {
 ---@return ... # The returns if any.
 Common.CallCommandFromRemote = function(commandName, options)
     -- Check the command name is valid.
-    if not CommandsUtils.CheckStringArgument(commandName, true, "Remote Interface", "commandName", Common.CommandNames, commandName) then
+    if not CommandsUtils.CheckStringArgument(commandName, true, "Remote Interface", "commandName", Common.CommandNames,
+        commandName) then
         return nil
     end
 
@@ -102,7 +107,9 @@ Common.CallCommandFromRemote = function(commandName, options)
         -- Options should be a table of settings, so convert it to JSOn and just pass it through.
         commandString = helpers.table_to_json(options)
     else
-        CommandsUtils.LogPrintError("Remote Interface", commandName, "received unexpected option data type: " .. type(options), TableUtils.TableContentsToJSON(options, nil, true))
+        CommandsUtils.LogPrintError("Remote Interface", commandName,
+            "received unexpected option data type: " .. type(options),
+            TableUtils.TableContentsToJSON(options, nil, true))
         return nil
     end
 
@@ -136,6 +143,8 @@ Common.CallCommandFromRemote = function(commandName, options)
         return MOD.Interfaces.Commands.SpawnAroundPlayer(commandData)
     elseif commandName == Common.CommandNames.muppet_streamer_v2_teleport then
         return MOD.Interfaces.Commands.Teleport(commandData)
+    elseif commandName == Common.CommandNames.muppet_streamer_v2_add_player_to_permission_group then
+        return MOD.Interfaces.Commands.AddPlayerToPermissionGroup(commandData)
     end
 end
 
@@ -148,7 +157,8 @@ end
 ---@param commandString? string|nil # Used for error messages.
 ---@return LuaItemPrototype|nil itemPrototype
 ---@return boolean validArgument # If false the argument is invalid for the command and it should probably stop execution.
-Common.GetItemPrototypeFromCommandArgument = function(itemName, itemType, mandatory, commandName, argumentName, commandString)
+Common.GetItemPrototypeFromCommandArgument = function(itemName, itemType, mandatory, commandName, argumentName,
+    commandString)
     if not CommandsUtils.CheckStringArgument(itemName, mandatory, commandName, argumentName, nil, commandString) then
         return nil, false
     end
@@ -156,7 +166,8 @@ Common.GetItemPrototypeFromCommandArgument = function(itemName, itemType, mandat
     if itemName ~= nil and itemName ~= "" then
         itemPrototype = prototypes.item[itemName]
         if itemPrototype == nil or itemPrototype.type ~= itemType then
-            CommandsUtils.LogPrintError(commandName, argumentName, "isn't a valid " .. itemType .. " type: " .. tostring(itemName), commandString)
+            CommandsUtils.LogPrintError(commandName, argumentName,
+                "isn't a valid " .. itemType .. " type: " .. tostring(itemName), commandString)
             return nil, false
         end
     end
@@ -172,7 +183,8 @@ end
 ---@param commandString? string|nil # Used for error messages.
 ---@return LuaEntityPrototype|nil entityPrototype
 ---@return boolean validArgument # If false the argument is invalid for the command and it should probably stop execution.
-Common.GetEntityPrototypeFromCommandArgument = function(entityName, entityType, mandatory, commandName, argumentName, commandString)
+Common.GetEntityPrototypeFromCommandArgument = function(entityName, entityType, mandatory, commandName, argumentName,
+    commandString)
     if not CommandsUtils.CheckStringArgument(entityName, mandatory, commandName, argumentName, nil, commandString) then
         return nil, false
     end
@@ -180,7 +192,8 @@ Common.GetEntityPrototypeFromCommandArgument = function(entityName, entityType, 
     if entityName ~= nil and entityName ~= "" then
         entityPrototype = prototypes.entity[entityName]
         if entityPrototype == nil or entityPrototype.type ~= entityType then
-            CommandsUtils.LogPrintError(commandName, argumentName, "isn't a valid " .. entityType .. " type: " .. tostring(entityName), commandString)
+            CommandsUtils.LogPrintError(commandName, argumentName,
+                "isn't a valid " .. entityType .. " type: " .. tostring(entityName), commandString)
             return nil, false
         end
     end
@@ -196,14 +209,16 @@ end
 Common.GetBaseGameEntityByName = function(entityName, expectedEntityType, commandName, commandString)
     local entityPrototype = prototypes.entity[entityName]
     if entityPrototype == nil then
-        CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. entityName .. "' entity, but it doesn't exist in this save.", commandString)
+        CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. entityName ..
+            "' entity, but it doesn't exist in this save.", commandString)
         return nil
     end
 
     if expectedEntityType ~= nil then
         if type(expectedEntityType) == "string" then
             if entityPrototype.type ~= expectedEntityType then
-                CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. entityName .. "' entity, but it isn't type '" .. expectedEntityType .. "'.", commandString)
+                CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. entityName ..
+                    "' entity, but it isn't type '" .. expectedEntityType .. "'.", commandString)
                 return nil
             end
         elseif type(expectedEntityType) == "table" then
@@ -216,7 +231,9 @@ Common.GetBaseGameEntityByName = function(entityName, expectedEntityType, comman
                 end
             end
             if not aValidType then
-                CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. entityName .. "' entity, but it isn't one of the types: " .. TableUtils.TableValueToCommaString(expectedEntityType) .. ".", commandString)
+                CommandsUtils.LogPrintError(commandName, nil,
+                    "tried to use base game '" .. entityName .. "' entity, but it isn't one of the types: " ..
+                        TableUtils.TableValueToCommaString(expectedEntityType) .. ".", commandString)
                 return nil
             end
         end
@@ -234,14 +251,16 @@ end
 Common.GetBaseGameItemByName = function(itemName, expectedItemType, commandName, commandString)
     local itemPrototype = prototypes.item[itemName]
     if itemPrototype == nil then
-        CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. itemName .. "' item, but it doesn't exist in this save.", commandString)
+        CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. itemName ..
+            "' item, but it doesn't exist in this save.", commandString)
         return nil
     end
 
     if expectedItemType ~= nil then
         if type(expectedItemType) == "string" then
             if itemPrototype.type ~= expectedItemType then
-                CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. itemName .. "' item, but it isn't type '" .. expectedItemType .. "'.", commandString)
+                CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. itemName ..
+                    "' item, but it isn't type '" .. expectedItemType .. "'.", commandString)
                 return nil
             end
         elseif type(expectedItemType) == "table" then
@@ -254,7 +273,9 @@ Common.GetBaseGameItemByName = function(itemName, expectedItemType, commandName,
                 end
             end
             if not aValidType then
-                CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. itemName .. "' item, but it isn't one of the types: " .. TableUtils.TableValueToCommaString(expectedItemType) .. ".", commandString)
+                CommandsUtils.LogPrintError(commandName, nil,
+                    "tried to use base game '" .. itemName .. "' item, but it isn't one of the types: " ..
+                        TableUtils.TableValueToCommaString(expectedItemType) .. ".", commandString)
                 return nil
             end
         end
@@ -271,7 +292,8 @@ end
 Common.GetBaseGameFluidByName = function(fluidName, commandName, commandString)
     local fluidPrototype = prototypes.fluid[fluidName]
     if fluidPrototype == nil then
-        CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. fluidName .. "' fluid, but it doesn't exist in this save.", commandString)
+        CommandsUtils.LogPrintError(commandName, nil, "tried to use base game '" .. fluidName ..
+            "' fluid, but it doesn't exist in this save.", commandString)
         return nil
     end
 
