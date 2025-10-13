@@ -5,14 +5,7 @@
 local AddPlayerToPermissionGroup = {}; ---@class AddPlayerToPermissionGroup
 
 local CommandsUtils = require("utility.helper-utils.commands-utils")
-local LoggingUtils = require("utility.helper-utils.logging-utils")
-local EventScheduler = require("utility.manager-libraries.event-scheduler")
-local PositionUtils = require("utility.helper-utils.position-utils")
-local Events = require("utility.manager-libraries.events")
-local StringUtils = require("utility.helper-utils.string-utils")
-local MathUtils = require("utility.helper-utils.math-utils")
 local Common = require("scripts.common")
-local DirectionUtils = require("utility.helper-utils.direction-utils")
 local MalfunctioningWeapon = require("scripts.malfunctioning-weapon")
 local AggressiveDriver = require("scripts.aggressive-driver")
 
@@ -20,6 +13,7 @@ local AggressiveDriver = require("scripts.aggressive-driver")
 ---@field target string # Player's name.
 ---@field groupName string | nil # Name of the permission group.
 ---@field revert boolean # Revert the player back to their original group.
+---@field forceToCharacter boolean # Force the player out of remote view.
 ---@
 
 local CommandName = "muppet_streamer_v2_add_player_to_permission_group"
@@ -43,7 +37,7 @@ end
 ---@param command CustomCommandData
 AddPlayerToPermissionGroup.AddPlayerToPermissionGroupCommand = function(command)
     local commandData = CommandsUtils.GetSettingsTableFromCommandParameterString(command.parameter, true, CommandName,
-        {"target", "groupName", "revert"});
+        {"target", "groupName", "revert", "forceToCharacter"});
     if commandData == nil then
         return
     end
@@ -52,7 +46,6 @@ AddPlayerToPermissionGroup.AddPlayerToPermissionGroupCommand = function(command)
     if not Common.CheckPlayerNameSettingValue(target, CommandName, "target", command.parameter) then
         return
     end ---@cast target string
-    game.print("Target: " .. target);
 
     local revert = commandData.revert;
     local groupName = commandData.groupName;
@@ -65,18 +58,38 @@ AddPlayerToPermissionGroup.AddPlayerToPermissionGroupCommand = function(command)
         return;
     end ---@cast groupName string
 
-    game.print("Group: " .. groupName)
+    local forceToCharacter = commandData.forceToCharacter;
+    if not CommandsUtils.CheckBooleanArgument(forceToCharacter, false, CommandName, "forceToCharacter",
+        command.parameter) then
+        forceToCharacter = false;
+    end ---@cast forceToCharacter boolean
 
     ---@type AddPlayerToPermissionGroup_ApplyToPlayer
     local data = {
         target = target,
         groupName = groupName,
-        revert = revert
+        revert = revert,
+        forceToCharacter = forceToCharacter
     }
     AddPlayerToPermissionGroup.ApplyToPlayer(data)
 
 end
 
+---@param player LuaPlayer
+AddPlayerToPermissionGroup.ForceToCharacter = function(player)
+    ---@type  LuaPlayer.set_controller_param
+    local param = {
+        character = player.character,
+        type = defines.controllers.character
+    }
+    if param.character == nil then
+        CommandsUtils.LogPrintWarning(CommandName, "forceToCharacter",
+            player.name .. " has no character, so can't force to character.", nil)
+        return
+    end
+    player.set_controller(param)
+
+end
 ---@param data AddPlayerToPermissionGroup_ApplyToPlayer
 AddPlayerToPermissionGroup.ApplyToPlayer = function(data)
     local targetPlayer = game.get_player(data.target)
@@ -94,6 +107,10 @@ AddPlayerToPermissionGroup.ApplyToPlayer = function(data)
         end
         targetPlayer.permission_group = storage.originalPlayersPermissionGroup[targetPlayer_index];
         storage.originalPlayersPermissionGroup[targetPlayer_index] = nil
+
+        if data.forceToCharacter then
+            AddPlayerToPermissionGroup.ForceToCharacter(targetPlayer)
+        end
         return
     end
 
@@ -110,6 +127,9 @@ AddPlayerToPermissionGroup.ApplyToPlayer = function(data)
         storage.originalPlayersPermissionGroup[targetPlayer_index] or targetPlayer.permission_group
 
     targetPlayer.permission_group = group;
+    if data.forceToCharacter then
+        AddPlayerToPermissionGroup.ForceToCharacter(targetPlayer)
+    end
 end
 
 AddPlayerToPermissionGroup.Groups = {
