@@ -14,6 +14,7 @@ local PlayerInventoryShuffle = require("scripts.player-inventory-shuffle")
 local BuildingGhosts = require("scripts.building-ghosts")
 local Common = require("scripts.common")
 local DelayedLua = require("scripts.delayed-lua")
+local AddPlayerToPermissionGroup = require("scripts.add-player-to-permission-group")
 
 local function CreateGlobals()
     storage.originalPlayersPermissionGroup = storage.originalPlayersPermissionGroup or {} ---@type table<uint, LuaPermissionGroup> # Used to track the last non-modded permission group across all the features. So we restore back to it after jumping between modded permission groups. Reset upon the last feature expiring.
@@ -35,22 +36,20 @@ local function CreateGlobals()
     PlayerInventoryShuffle.CreateGlobals()
     PlayerInventoryShuffle.CreateGlobals()
     DelayedLua.CreateGlobals()
+    AddPlayerToPermissionGroup.CreateGlobals()
 end
 
 local function OnLoad()
-    --Any Remote Interface registration calls can go in here or in root of control.lua
+    -- Any Remote Interface registration calls can go in here or in root of control.lua
     remote.remove_interface("muppet_streamer_v2")
-    remote.add_interface(
-        "muppet_streamer_v2",
-        {
-            run_command = Common.CallCommandFromRemote,
-            increase_team_member_level = TeamMember.RemoteIncreaseTeamMemberLevel,
-            add_delayed_lua = DelayedLua.AddDelayedLua_Remote,
-            remove_delayed_lua = DelayedLua.RemoveDelayedLua_Remote,
-            get_delayed_lua_data = DelayedLua.GetDelayedLuaData_Remote,
-            set_delayed_lua_data = DelayedLua.SetDelayedLuaData_Remote
-        }
-    )
+    remote.add_interface("muppet_streamer_v2", {
+        run_command = Common.CallCommandFromRemote,
+        increase_team_member_level = TeamMember.RemoteIncreaseTeamMemberLevel,
+        add_delayed_lua = DelayedLua.AddDelayedLua_Remote,
+        remove_delayed_lua = DelayedLua.RemoveDelayedLua_Remote,
+        get_delayed_lua_data = DelayedLua.GetDelayedLuaData_Remote,
+        set_delayed_lua_data = DelayedLua.SetDelayedLuaData_Remote
+    })
 
     BuildingGhosts.OnLoad()
     TeamMember.OnLoad()
@@ -65,6 +64,7 @@ local function OnLoad()
     PlayerDropInventory.OnLoad()
     PlayerInventoryShuffle.OnLoad()
     DelayedLua.OnLoad()
+    AddPlayerToPermissionGroup.OnLoad()
 end
 
 ---@param event on_runtime_mod_setting_changed
@@ -83,6 +83,7 @@ local function OnStartup()
     TeamMember.OnStartup()
     MalfunctioningWeapon.OnStartup()
     AggressiveDriver.OnStartup()
+    AddPlayerToPermissionGroup.OnStartup()
 
     -- Ensure our special enemy force is always present.
     if storage.Forces.muppet_streamer_v2_enemy == nil then
