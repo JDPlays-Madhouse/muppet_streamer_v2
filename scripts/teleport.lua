@@ -11,21 +11,23 @@ local Common = require("scripts.common")
 ---@enum Teleport_DestinationTypeSelection
 local DestinationTypeSelection = {
     random = "random",
+    randomPlanet = "randomPlanet",
     biterNest = "biterNest",
     enemyUnit = "enemyUnit",
     spawn = "spawn",
     position = "position",
-    player_position = "physical_position"
+    playerPosition = "physicalPosition"
 }
 
 ---@enum Teleport_DestinationTypeSelectionDescription
 local DestinationTypeSelectionDescription = {
     random = "Random Location",
+    randomPlanet = "Random Planet",
     biterNest = "Nearest Biter Nest",
     enemyUnit = "Enemy Unit",
     spawn = "spawn",
     position = "Set Position",
-    player_position = "Set the Physical Position of the Player"
+    playerPosition = "Set the Physical Position of the Player"
 }
 
 local MaxTargetAttempts = 5
@@ -185,7 +187,6 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
                 "must be a valid map position object", commandData.parameter)
             return nil
         else
-            -- TODO: Check if valid default
             destinationType = DestinationTypeSelection.position
         end
     else
@@ -199,18 +200,37 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
     ---@type LuaSurface|nil
     local destinationTargetSurface;
     local destinationSurfaceRaw = commandData.destinationSurface
+    local addSpawnAsBackup = false;
+
+    -- Default random planet to player coordinates.
+    if destinationType == DestinationTypeSelection.randomPlanet then
+        destinationSurfaceRaw = "randomPlanet";
+        destinationType = DestinationTypeSelection.playerPosition
+        addSpawnAsBackup = true
+    end
+
+    -- destinationSurface defaults to current surface
     if type(destinationSurfaceRaw) == "string" or type(destinationSurfaceRaw) == "number" then
         if destinationSurfaceRaw == "random" then
             local surfaces = game.surfaces;
             local randomIndex = math.random(1, #surfaces);
             destinationTargetSurface = surfaces[randomIndex]
+        elseif destinationSurfaceRaw == "randomPlanet" then
+            local validPlanets = {};
+            for name, planet in pairs(game.planets) do
+                if planet.surface then
+                    table.insert(validPlanets, planet.surface);
+                end
+            end
+            local randomIndex = math.random(1, #validPlanets);
+            destinationTargetSurface = validPlanets[randomIndex];
         elseif destinationSurfaceRaw == "same" then
             destinationTargetSurface = nil
         else
             destinationTargetSurface = game.get_surface(destinationSurfaceRaw);
             if destinationTargetSurface == nil then
-                CommandsUtils.LogPrintError(CommandName, "destinationSurface", "must be a valid surface",
-                    commandData.parameter)
+                CommandsUtils.LogPrintError(CommandName, "destinationSurface",
+                    "must be a valid surface name or index, 'random', 'randomPlanet' or 'same'", commandData.parameter)
                 return nil
             end
         end
@@ -238,7 +258,7 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
 
     local maxDistance = commandData.maxDistance
     if destinationType == DestinationTypeSelection.position or destinationType == DestinationTypeSelection.spawn or
-        DestinationTypeSelection.player_position then
+        DestinationTypeSelection.playerPosition then
         if maxDistance ~= nil then
             CommandsUtils.LogPrintWarning(CommandName, "maxDistance" .. depthErrorMessage,
                 "maxDistance setting is populated but will be ignored as the destinationType is either spawn, a set map position or a player position.",
@@ -296,6 +316,16 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
                     type(backupTeleportSettings), commandData.parameter)
             return nil
         end
+    elseif addSpawnAsBackup then
+        local backupDestinationTargetSurface;
+        if destinationTargetSurface ~= nil then
+            backupDestinationTargetSurface = destinationTargetSurface.name
+        end
+        backupTeleportSettings = Teleport.GetCommandData({
+            destinationType = DestinationTypeSelection.spawn,
+            destinationSurface = backupDestinationTargetSurface,
+            target = target
+        }, depth + 1, commandStringText, suppressMessages)
     end
 
     ---@type Teleport_CommandDetails
@@ -393,6 +423,8 @@ Teleport.PlanTeleportTarget = function(eventData)
     elseif data.destinationType == DestinationTypeSelection.position then
         data.destinationTargetPosition = data.destinationTargetPosition
         data.destinationTargetSurface = data.destinationTargetSurface
+    elseif data.destinationType == DestinationTypeSelection.playerPosition then
+        data.destinationTargetPosition = targetPlayer_position
     elseif data.destinationType == DestinationTypeSelection.random then
         data.destinationTargetPosition = PositionUtils.RandomLocationInRadius(targetPlayer_position, data.maxDistance,
             data.minDistance)
@@ -543,7 +575,12 @@ Teleport.PlanTeleportTarget = function(eventData)
         -- No valid position was found to try and teleport too.
         if data.targetAttempt > MaxTargetAttempts then
             if not data.suppressMessages then
-                game.print({"message.muppet_streamer_v2_teleport_no_teleport_location_found", targetPlayer.name})
+                if data.destinationTargetSurface ~= nil then
+                    game.print({"message.muppet_streamer_v2_teleport_no_teleport_location_found_on_specific_surface",
+                                targetPlayer.name, data.destinationTargetSurface.name})
+                else
+                    game.print({"message.muppet_streamer_v2_teleport_no_teleport_location_found", targetPlayer.name})
+                end
             end
             Teleport.DoBackupTeleport(data)
             return
