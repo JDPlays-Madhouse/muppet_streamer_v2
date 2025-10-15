@@ -187,7 +187,6 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
                 "must be a valid map position object", commandData.parameter)
             return nil
         else
-            -- TODO: Check if valid default
             destinationType = DestinationTypeSelection.position
         end
     else
@@ -201,18 +200,37 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
     ---@type LuaSurface|nil
     local destinationTargetSurface;
     local destinationSurfaceRaw = commandData.destinationSurface
+    local addSpawnAsBackup = false;
+
+    -- Default random planet to player coordinates.
+    if destinationType == DestinationTypeSelection.randomPlanet then
+        destinationSurfaceRaw = "randomPlanet";
+        destinationType = DestinationTypeSelection.playerPosition
+        addSpawnAsBackup = true
+    end
+
+    -- destinationSurface defaults to current surface
     if type(destinationSurfaceRaw) == "string" or type(destinationSurfaceRaw) == "number" then
         if destinationSurfaceRaw == "random" then
             local surfaces = game.surfaces;
             local randomIndex = math.random(1, #surfaces);
             destinationTargetSurface = surfaces[randomIndex]
+        elseif destinationSurfaceRaw == "randomPlanet" then
+            local validPlanets = {};
+            for name, planet in pairs(game.planets) do
+                if planet.surface then
+                    table.insert(validPlanets, planet.surface);
+                end
+            end
+            local randomIndex = math.random(1, #validPlanets);
+            destinationTargetSurface = validPlanets[randomIndex];
         elseif destinationSurfaceRaw == "same" then
             destinationTargetSurface = nil
         else
             destinationTargetSurface = game.get_surface(destinationSurfaceRaw);
             if destinationTargetSurface == nil then
-                CommandsUtils.LogPrintError(CommandName, "destinationSurface", "must be a valid surface",
-                    commandData.parameter)
+                CommandsUtils.LogPrintError(CommandName, "destinationSurface",
+                    "must be a valid surface name or index, 'random', 'randomPlanet' or 'same'", commandData.parameter)
                 return nil
             end
         end
@@ -298,6 +316,16 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
                     type(backupTeleportSettings), commandData.parameter)
             return nil
         end
+    elseif addSpawnAsBackup then
+        local backupDestinationTargetSurface;
+        if destinationTargetSurface ~= nil then
+            backupDestinationTargetSurface = destinationTargetSurface.name
+        end
+        backupTeleportSettings = Teleport.GetCommandData({
+            destinationType = DestinationTypeSelection.spawn,
+            destinationSurface = backupDestinationTargetSurface,
+            target = target
+        }, depth + 1, commandStringText, suppressMessages)
     end
 
     ---@type Teleport_CommandDetails
@@ -395,6 +423,8 @@ Teleport.PlanTeleportTarget = function(eventData)
     elseif data.destinationType == DestinationTypeSelection.position then
         data.destinationTargetPosition = data.destinationTargetPosition
         data.destinationTargetSurface = data.destinationTargetSurface
+    elseif data.destinationType == DestinationTypeSelection.playerPosition then
+        data.destinationTargetPosition = targetPlayer_position
     elseif data.destinationType == DestinationTypeSelection.random then
         data.destinationTargetPosition = PositionUtils.RandomLocationInRadius(targetPlayer_position, data.maxDistance,
             data.minDistance)
