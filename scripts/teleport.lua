@@ -11,21 +11,23 @@ local Common = require("scripts.common")
 ---@enum Teleport_DestinationTypeSelection
 local DestinationTypeSelection = {
     random = "random",
+    randomPlanet = "randomPlanet",
     biterNest = "biterNest",
     enemyUnit = "enemyUnit",
     spawn = "spawn",
     position = "position",
-    player_position = "physical_position"
+    playerPosition = "physicalPosition"
 }
 
 ---@enum Teleport_DestinationTypeSelectionDescription
 local DestinationTypeSelectionDescription = {
     random = "Random Location",
+    randomPlanet = "Random Planet",
     biterNest = "Nearest Biter Nest",
     enemyUnit = "Enemy Unit",
     spawn = "spawn",
     position = "Set Position",
-    player_position = "Set the Physical Position of the Player"
+    playerPosition = "Set the Physical Position of the Player"
 }
 
 local MaxTargetAttempts = 5
@@ -238,7 +240,7 @@ Teleport.GetCommandData = function(commandData, depth, commandStringText, suppre
 
     local maxDistance = commandData.maxDistance
     if destinationType == DestinationTypeSelection.position or destinationType == DestinationTypeSelection.spawn or
-        DestinationTypeSelection.player_position then
+        DestinationTypeSelection.playerPosition then
         if maxDistance ~= nil then
             CommandsUtils.LogPrintWarning(CommandName, "maxDistance" .. depthErrorMessage,
                 "maxDistance setting is populated but will be ignored as the destinationType is either spawn, a set map position or a player position.",
@@ -543,7 +545,12 @@ Teleport.PlanTeleportTarget = function(eventData)
         -- No valid position was found to try and teleport too.
         if data.targetAttempt > MaxTargetAttempts then
             if not data.suppressMessages then
-                game.print({"message.muppet_streamer_v2_teleport_no_teleport_location_found", targetPlayer.name})
+                if data.destinationTargetSurface ~= nil then
+                    game.print({"message.muppet_streamer_v2_teleport_no_teleport_location_found_on_specific_surface",
+                                targetPlayer.name, data.destinationTargetSurface.name})
+                else
+                    game.print({"message.muppet_streamer_v2_teleport_no_teleport_location_found", targetPlayer.name})
+                end
             end
             Teleport.DoBackupTeleport(data)
             return
